@@ -1,0 +1,50 @@
+version: '3'
+
+services:
+  beanstalkd:
+    image: schickling/beanstalkd:latest
+    command: -b /data
+    restart: unless-stopped
+    volumes:
+      - beanstalkd_data:/data
+
+  redis_rdb:
+    image: redis:latest
+    command: redis-server --save 900 1 --save 300 10 --save 60 10000
+    restart: unless-stopped
+    volumes:
+      - redis_rdb_data:/data
+
+  redis_aof:
+    image: redis:latest
+    command: redis-server --appendonly yes
+    restart: unless-stopped
+    volumes:
+      - redis_aof_data:/data
+
+  queue_writer:
+    build: .
+    command: [ "--writer" ]
+    restart: on-failure
+    volumes:
+      - ./results:/results
+    depends_on:
+      - beanstalkd
+      - redis_rdb
+      - redis_aof
+
+  queue_reader:
+    build: .
+    command: [ "--reader" ]
+    restart: on-failure
+    volumes:
+      - ./results:/results
+    depends_on:
+      - beanstalkd
+      - redis_rdb
+      - redis_aof
+
+volumes:
+  beanstalkd_data:
+  redis_rdb_data:
+  redis_aof_data:
